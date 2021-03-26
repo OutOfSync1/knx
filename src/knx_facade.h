@@ -8,6 +8,10 @@
 #include "knx/bau2920.h"
 #include "knx/bau57B0.h"
 
+#ifndef USERDATA_SAVE_SIZE
+#define USERDATA_SAVE_SIZE 0
+#endif
+
 #ifdef ARDUINO_ARCH_SAMD
     #include "samd_platform.h"
     #ifndef KNX_NO_AUTOMATIC_GLOBAL_INSTANCE
@@ -40,7 +44,8 @@
     #endif
 #endif
 
-typedef uint8_t* (*SaveRestoreCallback)(uint8_t* buffer);
+typedef const uint8_t* (*RestoreCallback)(const uint8_t* buffer);
+typedef uint8_t* (*SaveCallback)(uint8_t* buffer);
 typedef void (*IsrFunctionPtr)();
  
 template <class P, class B> class KnxFacade : private SaveRestore
@@ -187,6 +192,21 @@ template <class P, class B> class KnxFacade : private SaveRestore
     {
         return _bau.deviceObject().individualAddress();
     }
+    
+    uint8_t individualAddressArea()
+    {
+        return (individualAddress() & 0xF000) >> 12;
+    }
+
+    uint8_t individualAddressLine()
+    {
+        return (individualAddress() & 0x0F00) >> 8;
+    }
+
+    uint8_t individualAddressDevice()
+    {
+        return (individualAddress() & 0x00FF);
+    }
 
     void loop()
     {
@@ -196,12 +216,20 @@ template <class P, class B> class KnxFacade : private SaveRestore
             if (_progLedState)
             {
                 println("progmode on");
-                digitalWrite(ledPin(), _ledPinActiveOn);
+                // only if LED pin is set
+                if(_ledPin > 0)
+                {
+                    digitalWrite(_ledPin, _ledPinActiveOn);
+                }
             }
             else
             {
                 println("progmode off");
-                digitalWrite(ledPin(), HIGH - _ledPinActiveOn);
+                // only if LED pin is set
+                if(_ledPin > 0)
+                {
+                    digitalWrite(_ledPin, HIGH - _ledPinActiveOn);
+                }
             }
         }
         if (_toggleProgMode)
@@ -239,20 +267,27 @@ template <class P, class B> class KnxFacade : private SaveRestore
 
     void start()
     {
-        pinMode(ledPin(), OUTPUT);
-
-        digitalWrite(ledPin(), HIGH - _ledPinActiveOn);
+    		// only if LED pin is set
+        if (_ledPin > 0)
+        {
+        	pinMode(ledPin(), OUTPUT);
+	        digitalWrite(ledPin(), HIGH - _ledPinActiveOn);
+  	    }
 
         pinMode(buttonPin(), INPUT_PULLUP);
 
-        if (_progButtonISRFuncPtr)
+				// only if button pin is set
+        if (_buttonPin > 0)
         {
-            // Workaround for https://github.com/arduino/ArduinoCore-samd/issues/587
-            #if (ARDUINO_API_VERSION >= 10200)
-                attachInterrupt(_buttonPin, _progButtonISRFuncPtr, (PinStatus)_buttonPinInterruptOn);
-            #else
-                attachInterrupt(_buttonPin, _progButtonISRFuncPtr, _buttonPinInterruptOn);
-            #endif
+	        if (_progButtonISRFuncPtr)
+        	{
+            	// Workaround for https://github.com/arduino/ArduinoCore-samd/issues/587
+            	#if (ARDUINO_API_VERSION >= 10200)
+                	attachInterrupt(_buttonPin, _progButtonISRFuncPtr, (PinStatus)_buttonPinInterruptOn);
+            	#else
+                	attachInterrupt(_buttonPin, _progButtonISRFuncPtr, _buttonPinInterruptOn);
+            	#endif
+        	}
         }
 
         enabled(true);
@@ -263,12 +298,12 @@ template <class P, class B> class KnxFacade : private SaveRestore
         _progButtonISRFuncPtr = progButtonISRFuncPtr;
     }
 
-    void setSaveCallback(SaveRestoreCallback func)
+    void setSaveCallback(SaveCallback func)
     {
         _saveCallback = func;
     }
 
-    void setRestoreCallback(SaveRestoreCallback func)
+    void setRestoreCallback(RestoreCallback func)
     {
         _restoreCallback = func;
     }
@@ -333,11 +368,11 @@ template <class P, class B> class KnxFacade : private SaveRestore
     uint32_t _ledPin = LED_BUILTIN;
     uint32_t _buttonPinInterruptOn = RISING;
     uint32_t _buttonPin = 0;
-    SaveRestoreCallback _saveCallback = 0;
-    SaveRestoreCallback _restoreCallback = 0;
+    SaveCallback _saveCallback = 0;
+    RestoreCallback _restoreCallback = 0;
     volatile bool _toggleProgMode = false;
     bool _progLedState = false;
-    uint16_t _saveSize = 0;
+    uint16_t _saveSize = USERDATA_SAVE_SIZE;
     IsrFunctionPtr _progButtonISRFuncPtr = 0;
 
     uint8_t* save(uint8_t* buffer)
@@ -348,7 +383,7 @@ template <class P, class B> class KnxFacade : private SaveRestore
         return buffer;
     }
 
-    uint8_t* restore(uint8_t* buffer)
+    const uint8_t* restore(const uint8_t* buffer)
     {
         if (_restoreCallback != 0)
             return _restoreCallback(buffer);

@@ -64,7 +64,7 @@ int KNX_Decode_Value(uint8_t* payload, size_t payload_length, const Dpt& datatyp
         if (datatype.mainGroup == 11 && datatype.subGroup == 1 && !datatype.index)
             return busValueToDate(payload, payload_length, datatype, value);
         // DPT 12.* - Unsigned 32 Bit Integer
-        if (datatype.mainGroup == 12 && datatype.subGroup == 1 && !datatype.index)
+        if (datatype.mainGroup == 12 && (datatype.subGroup == 1 || datatype.subGroup == 100 || datatype.subGroup == 101 || datatype.subGroup == 102 || datatype.subGroup == 1200 || datatype.subGroup == 1202) && !datatype.index)
             return busValueToUnsigned32(payload, payload_length, datatype, value);
         // DPT 13.001/13.002/13.010-13.015 - Signed 32 Bit Integer
         if (datatype.mainGroup == 13 && (datatype.subGroup == 1 || datatype.subGroup == 2 || (datatype.subGroup >= 10 && datatype.subGroup <= 15)) && !datatype.index)
@@ -165,7 +165,7 @@ int KNX_Decode_Value(uint8_t* payload, size_t payload_length, const Dpt& datatyp
         if (datatype.mainGroup == 11 && datatype.subGroup == 1 && !datatype.index)
             return busValueToDate(payload, payload_length, datatype, value);
         // DPT 12.* - Unsigned 32 Bit Integer
-        if (datatype.mainGroup == 12 && datatype.subGroup == 1 && !datatype.index)
+        if (datatype.mainGroup == 12 && (datatype.subGroup == 1 || datatype.subGroup == 100 || datatype.subGroup == 101 || datatype.subGroup == 102 || datatype.subGroup == 1200 || datatype.subGroup == 1202) && !datatype.index)
             return busValueToUnsigned32(payload, payload_length, datatype, value);
         // DPT 13.001/13.002/13.010-13.015 - Signed 32 Bit Integer
         if (datatype.mainGroup == 13 && (datatype.subGroup == 1 || datatype.subGroup == 2 || (datatype.subGroup >= 10 && datatype.subGroup <= 15)) && !datatype.index)
