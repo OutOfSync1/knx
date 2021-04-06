@@ -54,18 +54,21 @@ template <class P, class B> class KnxFacade : private SaveRestore
     KnxFacade() : _platformPtr(new P()), _bauPtr(new B(*_platformPtr)), _bau(*_bauPtr)
     {
         manufacturerId(0xfa);
+        bauNumber(platform().uniqueSerialNumber());
         _bau.addSaveRestore(this);
     }
 
     KnxFacade(B& bau) : _bau(bau)
     {
         manufacturerId(0xfa);
+        bauNumber(platform().uniqueSerialNumber());
         _bau.addSaveRestore(this);
     }
 
     KnxFacade(IsrFunctionPtr buttonISRFunction) : _platformPtr(new P()), _bauPtr(new B(*_platformPtr)), _bau(*_bauPtr)
     {
         manufacturerId(0xfa);
+        bauNumber(platform().uniqueSerialNumber());
         _bau.addSaveRestore(this);
         setButtonISRFunction(buttonISRFunction);
     }
@@ -244,10 +247,20 @@ template <class P, class B> class KnxFacade : private SaveRestore
     {
         _bau.deviceObject().manufacturerId(value);
     }
+    
+    uint16_t manufacturerId()
+    {
+        return _bau.deviceObject().manufacturerId();
+    }
 
     void bauNumber(uint32_t value)
     {
         _bau.deviceObject().bauNumber(value);
+    }
+    
+    int32_t bauNumber()
+    {
+        return _bau.deviceObject().bauNumber();
     }
 
     void orderNumber(const uint8_t* value)
@@ -258,6 +271,11 @@ template <class P, class B> class KnxFacade : private SaveRestore
     void hardwareType(const uint8_t* value)
     {
         _bau.deviceObject().hardwareType(value);
+    }
+    
+    const uint8_t* hardwareType()
+    {
+        return _bau.deviceObject().hardwareType();
     }
 
     void version(uint16_t value)
