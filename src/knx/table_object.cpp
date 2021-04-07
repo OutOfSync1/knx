@@ -31,6 +31,8 @@ uint8_t* TableObject::save(uint8_t* buffer)
 {
     buffer = pushByte(_state, buffer);
 
+    buffer = pushWord(_crc, buffer);
+
     if (_data)
         buffer = pushInt(_memory.toRelative(_data), buffer);
     else
@@ -45,6 +47,8 @@ const uint8_t* TableObject::restore(const uint8_t* buffer)
     uint8_t state = 0;
     buffer = popByte(state, buffer);
     _state = (LoadState)state;
+
+    buffer = popWord(_crc, buffer);
 
     uint32_t relativeAddress = 0;
     buffer = popInt(relativeAddress, buffer);
@@ -133,6 +137,7 @@ void TableObject::loadEventLoading(const uint8_t* data)
         case LE_START_LOADING:
             break;
         case LE_LOAD_COMPLETED:
+            _crc = Crc16Citt(_data, saveSize() - 4 - 1 - 2); // remove 4 (memory) + 1 (state) + 2 (crc) bytes
             loadState(LS_LOADED);
             break;
         case LE_UNLOAD:
@@ -229,7 +234,7 @@ void TableObject::errorCode(ErrorCode errorCode)
 
 uint16_t TableObject::saveSize()
 {
-    return 5 + InterfaceObject::saveSize();
+    return 5 + InterfaceObject::saveSize() + sizeof(_crc);
 }
 
 void TableObject::initializeProperties(size_t propertiesSize, Property** properties)
@@ -269,13 +274,12 @@ void TableObject::initializeProperties(size_t propertiesSize, Property** propert
             }),
             new CallbackProperty<TableObject>(this, PID_MCB_TABLE, false, PDT_GENERIC_08, 1, ReadLv3 | WriteLv0,
             [](TableObject* obj, uint16_t start, uint8_t count, uint8_t* data) -> uint8_t {
-                uint16_t size = obj->saveSize() - 5; 				// need to remove 5 extra bytes which were added in saveSize()
+                uint16_t size = obj->saveSize() - 5 - 2;	// need to remove 5+2 extra bytes which were added in saveSize()
                 
                 data = pushInt(size, data);                 // Segment Size (2 bytes)
                 data = pushByte(0, data);                   // CRC Control Byte: CRC always valid (1 byte)
                 data = pushByte(0xFF, data);                // ReadAccess/WriteAccess (1 byte)
-                data = pushWord(crc16Ccitt(obj->data(), size), data); // CRC checksum according to CRC16-CCITT spec (2 bytes)
-
+                data = pushWord(obj->_crc, data);           // CRC checksum according to CRC16-CCITT spec (2 bytes)
                 return 1;
             }),
         new DataProperty(PID_ERROR_CODE, false, PDT_ENUM8, 1, ReadLv3 | WriteLv0, (uint8_t)E_NO_FAULT)
